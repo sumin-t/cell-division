@@ -1,0 +1,951 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>염색체 관찰소</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+  :root{
+    --bg:#f1f5ee;
+    --surface:#ffffff;
+    --surface-2:#eaf1e6;
+    --ink:#1c271f;
+    --ink-soft:#57685c;
+    --line:#dbe3d5;
+    --accent:#3f7a5c;
+    --accent-strong:#254a37;
+    --accent-soft:#dcefe2;
+    --chromo-mom:#d5445e;
+    --chromo-dad:#2e69ad;
+    --danger:#b23f35;
+    --danger-soft:#f7e0dd;
+    --success:#2c7a4b;
+    --success-soft:#dcefe2;
+    --cell-grad-in:#fffaf0;
+    --cell-grad-out:#f2cf7f;
+    --cell-line:#dcb45f;
+    --slot-fill:#3f7a5c;
+    --spindle:#9a8f6a;
+    --shadow:0 1px 2px rgba(28,39,31,0.06), 0 8px 24px -12px rgba(28,39,31,0.18);
+    --svg-shadow: drop-shadow(0 3px 8px rgba(28,39,31,0.16));
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#101712;
+      --surface:#171f19;
+      --surface-2:#1e2921;
+      --ink:#e9efe6;
+      --ink-soft:#a6b6ab;
+      --line:#2a352d;
+      --accent:#72c096;
+      --accent-strong:#9adcb8;
+      --accent-soft:#20362a;
+      --chromo-mom:#f0808f;
+      --chromo-dad:#7fb0e6;
+      --danger:#e58f84;
+      --danger-soft:#3a2420;
+      --success:#72c096;
+      --success-soft:#1e3226;
+      --cell-grad-in:#40331a;
+      --cell-grad-out:#1c1509;
+      --cell-line:#5c4a28;
+      --slot-fill:#72c096;
+      --spindle:#c9bd91;
+      --shadow:0 1px 2px rgba(0,0,0,0.4), 0 12px 28px -14px rgba(0,0,0,0.6);
+      --svg-shadow: drop-shadow(0 3px 10px rgba(0,0,0,0.55));
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#101712;
+    --surface:#171f19;
+    --surface-2:#1e2921;
+    --ink:#e9efe6;
+    --ink-soft:#a6b6ab;
+    --line:#2a352d;
+    --accent:#72c096;
+    --accent-strong:#9adcb8;
+    --accent-soft:#20362a;
+    --chromo-mom:#f0808f;
+    --chromo-dad:#7fb0e6;
+    --danger:#e58f84;
+    --danger-soft:#3a2420;
+    --success:#72c096;
+    --success-soft:#1e3226;
+    --cell-grad-in:#40331a;
+    --cell-grad-out:#1c1509;
+    --cell-line:#5c4a28;
+    --slot-fill:#72c096;
+    --spindle:#c9bd91;
+    --shadow:0 1px 2px rgba(0,0,0,0.4), 0 12px 28px -14px rgba(0,0,0,0.6);
+    --svg-shadow: drop-shadow(0 3px 10px rgba(0,0,0,0.55));
+  }
+
+  *{box-sizing:border-box;}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:'IBM Plex Sans KR','Noto Sans KR',sans-serif;
+    line-height:1.6;
+  }
+  h1,h2,h3,.display{
+    font-family:'Gowun Batang','Noto Serif KR',serif;
+    text-wrap:balance;
+    font-weight:700;
+    color:var(--ink);
+  }
+  .mono{ font-family:'IBM Plex Mono',monospace; letter-spacing:0.02em; }
+  button{ font-family:inherit; }
+  button:focus-visible, [tabindex]:focus-visible{
+    outline:3px solid var(--accent);
+    outline-offset:2px;
+  }
+  a{ color:var(--accent-strong); }
+
+  #app{ max-width:1000px; margin:0 auto; padding:20px 20px 64px; }
+
+  /* ---------- header ---------- */
+  .topbar{
+    display:flex; align-items:center; justify-content:space-between;
+    gap:12px; padding:10px 2px 22px; flex-wrap:wrap;
+  }
+  .brand{ display:flex; align-items:baseline; gap:10px; }
+  .brand .mark{ font-size:1.5rem; }
+  .brand h1{ font-size:1.35rem; margin:0; }
+  .brand .tag{ font-size:0.78rem; color:var(--ink-soft); font-family:'IBM Plex Mono',monospace; }
+  .home-btn{
+    display:inline-flex; align-items:center; gap:6px;
+    background:var(--surface); color:var(--ink-soft);
+    border:1px solid var(--line); border-radius:999px;
+    padding:7px 14px; font-size:0.85rem; cursor:pointer;
+    transition:border-color .15s, color .15s;
+  }
+  .home-btn:hover{ border-color:var(--accent); color:var(--accent-strong); }
+
+  /* ---------- home ---------- */
+  .intro{
+    background:var(--surface); border:1px solid var(--line); border-radius:18px;
+    padding:26px 28px; margin-bottom:26px; box-shadow:var(--shadow);
+  }
+  .intro h2{ font-size:1.5rem; margin:0 0 10px; }
+  .intro p{ margin:0; color:var(--ink-soft); max-width:64ch; font-size:0.98rem; }
+  .intro .unit-badge{
+    display:inline-block; font-family:'IBM Plex Mono',monospace; font-size:0.72rem;
+    background:var(--accent-soft); color:var(--accent-strong); padding:3px 10px;
+    border-radius:999px; margin-bottom:12px; letter-spacing:0.02em;
+  }
+
+  .mode-grid{ display:grid; grid-template-columns:1fr 1fr; gap:18px; }
+  @media (max-width:680px){ .mode-grid{ grid-template-columns:1fr; } }
+
+  .mode-card{
+    background:var(--surface); border:1px solid var(--line); border-radius:18px;
+    padding:22px; display:flex; flex-direction:column; gap:14px;
+    box-shadow:var(--shadow); text-align:left;
+    cursor:pointer; transition:transform .18s ease, border-color .18s ease;
+  }
+  .mode-card:hover{ transform:translateY(-3px); border-color:var(--accent); }
+  .mode-preview{ background:var(--surface-2); border-radius:12px; padding:8px; border:1px solid var(--line); }
+  .mode-preview svg{ display:block; width:100%; height:auto; filter:var(--svg-shadow); }
+  .mode-card h3{ font-size:1.2rem; margin:0; }
+  .mode-card .desc{ color:var(--ink-soft); font-size:0.9rem; margin:0; flex:1; }
+  .mode-card .meta{ display:flex; gap:14px; font-family:'IBM Plex Mono',monospace; font-size:0.72rem; color:var(--ink-soft); }
+  .mode-card .cta{
+    align-self:flex-start; background:var(--accent); color:#fff;
+    border:none; border-radius:10px; padding:9px 16px; font-weight:600;
+    font-size:0.88rem; cursor:pointer;
+  }
+  .mode-card.mitosis .cta{ background:var(--chromo-mom); }
+  .mode-card.meiosis .cta{ background:var(--chromo-dad); }
+
+  .legend{
+    display:flex; gap:18px; align-items:center; flex-wrap:wrap;
+    margin-top:22px; padding:14px 18px; background:var(--surface); border:1px solid var(--line);
+    border-radius:14px; font-size:0.83rem; color:var(--ink-soft);
+  }
+  .legend .swatch{ display:inline-flex; align-items:center; gap:6px; }
+  .legend .dot{ width:13px; height:13px; border-radius:4px; display:inline-block; }
+
+  /* ---------- stepper ---------- */
+  .stepper{ display:flex; gap:6px; overflow-x:auto; padding:4px 2px 18px; scrollbar-width:thin; }
+  .step{
+    flex:0 0 auto; display:flex; align-items:center; gap:6px;
+    padding:6px 12px; border-radius:999px; font-size:0.78rem;
+    background:var(--surface); border:1px solid var(--line); color:var(--ink-soft);
+    white-space:nowrap;
+  }
+  .step .n{
+    width:18px; height:18px; border-radius:50%; display:inline-flex; align-items:center;
+    justify-content:center; font-family:'IBM Plex Mono',monospace; font-size:0.68rem;
+    background:var(--surface-2); color:var(--ink-soft);
+  }
+  .step.done{ color:var(--accent-strong); border-color:var(--accent-soft); }
+  .step.done .n{ background:var(--accent); color:#fff; }
+  .step.current{ background:var(--accent-soft); border-color:var(--accent); color:var(--accent-strong); font-weight:600; }
+  .step.current .n{ background:var(--accent); color:#fff; }
+
+  /* ---------- stage layout ---------- */
+  .stage-head{ margin-bottom:6px; }
+  .stage-head .kicker{
+    font-family:'IBM Plex Mono',monospace; font-size:0.75rem; color:var(--ink-soft);
+    text-transform:uppercase; letter-spacing:0.06em;
+  }
+  .stage-head h2{ font-size:1.4rem; margin:4px 0 2px; }
+
+  .layout{ display:grid; grid-template-columns:250px 1fr; gap:20px; align-items:start; margin-top:16px; }
+  @media (max-width:760px){ .layout{ grid-template-columns:1fr; } }
+
+  .ref-panel{
+    background:var(--surface); border:1px solid var(--line); border-radius:16px;
+    padding:16px; position:sticky; top:16px; box-shadow:var(--shadow);
+  }
+  .ref-panel .label{
+    font-family:'IBM Plex Mono',monospace; font-size:0.72rem; color:var(--ink-soft);
+    text-transform:uppercase; letter-spacing:0.05em; margin-bottom:6px;
+  }
+  .ref-panel .ref-title{ font-weight:600; margin-bottom:10px; }
+  .ref-panel .ref-diagram{ background:var(--surface-2); border-radius:10px; border:1px solid var(--line); padding:6px; }
+  .ref-panel .ref-diagram svg{ display:block; width:100%; height:auto; filter:var(--svg-shadow); }
+  .ref-panel .ref-note{ font-size:0.82rem; color:var(--ink-soft); margin-top:10px; }
+
+  .question-panel{ min-width:0; position:relative; }
+  .prompt{
+    background:var(--surface); border:1px solid var(--line); border-radius:16px;
+    padding:16px 20px; margin-bottom:14px; box-shadow:var(--shadow); font-size:1.0rem;
+  }
+  .prompt b{ color:var(--accent-strong); }
+
+  .workspace{
+    position:relative; aspect-ratio:300/210; width:100%; max-width:560px;
+    margin:0 auto 14px; border-radius:16px; overflow:visible;
+  }
+  .workspace .bg-layer{ position:absolute; inset:0; }
+  .workspace .bg-layer svg{ display:block; width:100%; height:100%; filter:var(--svg-shadow); }
+  .workspace .pieces-layer{ position:absolute; inset:0; pointer-events:none; }
+
+  .piece{
+    width:56px; height:70px; touch-action:none; user-select:none;
+  }
+  .piece svg{ display:block; width:100%; height:100%; }
+  .piece.in-tray{
+    background:var(--surface); border:1px solid var(--line); border-radius:10px;
+    box-shadow:var(--shadow); cursor:grab; padding:2px;
+  }
+  .piece.in-tray:hover{ border-color:var(--accent); }
+  .piece.dragging{
+    cursor:grabbing; z-index:80; box-shadow:0 10px 24px -8px rgba(0,0,0,0.35);
+    background:var(--surface); border:1px solid var(--accent); border-radius:10px;
+  }
+  .piece.placed{ pointer-events:none; }
+  .piece.shake{ animation:shake .4s ease; }
+  @keyframes shake{
+    0%,100%{ transform:translate(-50%,-50%); }
+    25%{ transform:translate(calc(-50% - 5px),-50%); }
+    75%{ transform:translate(calc(-50% + 5px),-50%); }
+  }
+
+  .tray{
+    display:flex; flex-wrap:wrap; gap:10px; justify-content:center;
+    background:var(--surface-2); border:1px dashed var(--line); border-radius:14px;
+    padding:14px; min-height:88px;
+  }
+  .tray-label{
+    font-family:'IBM Plex Mono',monospace; font-size:0.7rem; color:var(--ink-soft);
+    text-transform:uppercase; letter-spacing:0.05em; width:100%; text-align:center; margin-bottom:2px;
+  }
+  .drag-layer{ position:absolute; inset:0; pointer-events:none; z-index:60; }
+
+  .feedback{
+    margin-top:14px; border-radius:14px; padding:14px 18px; font-size:0.92rem;
+    border:1px solid var(--line); display:flex; gap:12px; align-items:flex-start;
+  }
+  .feedback.ok{ background:var(--success-soft); border-color:var(--success); }
+  .feedback.no{ background:var(--danger-soft); border-color:var(--danger); }
+  .feedback .icon{ font-size:1.2rem; line-height:1; }
+  .feedback .body b{ display:block; margin-bottom:4px; }
+  .feedback .body p{ margin:0; color:var(--ink); }
+  .next-btn{
+    margin-top:14px; background:var(--accent); color:#fff; border:none;
+    border-radius:10px; padding:10px 18px; font-weight:600; font-size:0.92rem; cursor:pointer;
+  }
+  .next-btn:hover{ background:var(--accent-strong); }
+
+  /* ---------- complete ---------- */
+  .complete{ background:var(--surface); border:1px solid var(--line); border-radius:18px; padding:28px; box-shadow:var(--shadow); }
+  .complete h2{ font-size:1.5rem; margin:0 0 6px; }
+  .complete p.lead{ color:var(--ink-soft); margin:0 0 20px; }
+  table.compare{ width:100%; border-collapse:collapse; font-size:0.88rem; margin-bottom:22px; }
+  table.compare th, table.compare td{ border:1px solid var(--line); padding:9px 12px; text-align:left; vertical-align:top; }
+  table.compare thead th{ background:var(--surface-2); font-family:'IBM Plex Mono',monospace; font-size:0.75rem; }
+  table.compare td.hl-mitosis{ color:var(--chromo-mom); font-weight:600; }
+  table.compare td.hl-meiosis{ color:var(--chromo-dad); font-weight:600; }
+  .compare-wrap{ overflow-x:auto; }
+  .complete-actions{ display:flex; gap:10px; flex-wrap:wrap; }
+  .btn-secondary{ background:var(--surface-2); color:var(--ink); border:1px solid var(--line); border-radius:10px; padding:10px 16px; font-weight:600; font-size:0.9rem; cursor:pointer; }
+  .btn-primary{ background:var(--accent); color:#fff; border:none; border-radius:10px; padding:10px 16px; font-weight:600; font-size:0.9rem; cursor:pointer; }
+
+  footer.foot{ text-align:center; color:var(--ink-soft); font-size:0.78rem; margin-top:36px; }
+
+  @media (prefers-reduced-motion: reduce){
+    .mode-card{ transition:none; }
+    .piece.shake{ animation:none; }
+  }
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ============ low-level chromosome / cell drawing ============ */
+
+  var _gid = 0;
+
+  function chromoNode(state, color, L, w){
+    if(state==='loose'){
+      var len=L*1.55, amp=w*1.0;
+      return '<path d="M0,'+(-len/2)+' C '+amp+','+(-len/4)+' '+(-amp)+','+(-len/9)+' 0,0 C '+amp+','+(len/9)+' '+(-amp)+','+(len/4)+' 0,'+(len/2)+'" fill="none" stroke="'+color+'" stroke-width="'+(w*0.42)+'" stroke-linecap="round"/>';
+    }
+    /* condensed chromatid: a rounded rod that narrows at its midpoint (the
+       centromere constriction), so a single chromatid already reads as one
+       continuous strand with a visible waist. */
+    var H = L*0.72, lobe = w*0.6, waist = w*0.14;
+    var d = 'M0,'+(-H)+
+      ' C '+lobe+','+(-H*0.78)+' '+lobe+','+(-H*0.2)+' '+waist+',0'+
+      ' C '+lobe+','+(H*0.2)+' '+lobe+','+(H*0.78)+' 0,'+H+
+      ' C '+(-lobe)+','+(H*0.78)+' '+(-lobe)+','+(H*0.2)+' '+(-waist)+',0'+
+      ' C '+(-lobe)+','+(-H*0.2)+' '+(-lobe)+','+(-H*0.78)+' 0,'+(-H)+' Z';
+    var chromatid = '<path d="'+d+'" fill="'+color+'"/>';
+    if(state===1){
+      /* single chromatid (post-separation): one strand, slight natural tilt */
+      return '<g transform="rotate(10)">'+chromatid+'</g>';
+    }
+    /* state 2: two sister chromatids crossing at a shared centromere ->
+       full four-armed chromosome shape, pinched at the middle where they meet */
+    return '<g><g transform="rotate(-34)">'+chromatid+'</g><g transform="rotate(34)">'+chromatid+'</g></g>';
+  }
+
+  function sizeFor(pair, scale){
+    var base = pair===1 ? {L:44,w:15.5} : {L:30,w:11.5};
+    return {L:base.L*scale, w:base.w*scale};
+  }
+
+  function chromoInstance(c, scale){
+    var sz=sizeFor(c.pair, scale);
+    var color = c.origin==='mom' ? 'var(--chromo-mom)' : 'var(--chromo-dad)';
+    return '<g transform="translate('+c.x+','+c.y+') rotate('+(c.rot||0)+')">'+chromoNode(c.state, color, sz.L, sz.w)+'</g>';
+  }
+
+  function cellNode(cell, gid){
+    return '<circle cx="'+cell.cx+'" cy="'+cell.cy+'" r="'+cell.r+'" fill="url(#'+gid+')" stroke="var(--cell-line)" stroke-width="2"/>';
+  }
+
+  function gradDefs(gid){
+    return '<defs><radialGradient id="'+gid+'" cx="35%" cy="28%" r="78%">'+
+      '<stop offset="0%" stop-color="var(--cell-grad-in)"/>'+
+      '<stop offset="100%" stop-color="var(--cell-grad-out)"/>'+
+      '</radialGradient></defs>';
+  }
+
+  function bracketNode(p1,p2,pad){
+    pad = pad || 24;
+    var cx=(p1.x+p2.x)/2, cy=(p1.y+p2.y)/2;
+    var dx=p2.x-p1.x, dy=p2.y-p1.y;
+    var dist=Math.sqrt(dx*dx+dy*dy);
+    var angle=Math.atan2(dy,dx)*180/Math.PI;
+    var rx=dist/2+pad*0.62, ry=pad;
+    return '<g transform="translate('+cx+','+cy+') rotate('+angle+')"><ellipse rx="'+rx+'" ry="'+ry+'" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1.5" stroke-dasharray="4 4" opacity="0.9"/></g>';
+  }
+
+  function slotGhostNode(slot, scale){
+    var rad = (slot.pair===1 ? 25 : 19) * scale;
+    return '<circle cx="'+slot.x+'" cy="'+slot.y+'" r="'+rad+'" fill="var(--accent)" fill-opacity="0.07" stroke="var(--accent)" stroke-opacity="0.55" stroke-width="2" stroke-dasharray="4 4"/>';
+  }
+
+  /* ---- spindle fibers (metaphase/anaphase only) ---- */
+  function nearestCell(cells, pt){
+    var best=cells[0], bestD=Infinity;
+    cells.forEach(function(c){
+      var dx=c.cx-pt.x, dy=c.cy-pt.y, d=dx*dx+dy*dy;
+      if(d<bestD){ bestD=d; best=c; }
+    });
+    return best;
+  }
+  function fiberLine(p, c){
+    return '<line x1="'+p.x+'" y1="'+p.y+'" x2="'+c.x+'" y2="'+c.y+'" stroke="var(--spindle)" stroke-width="1.1" stroke-dasharray="1.5 3" stroke-linecap="round" opacity="0.8"/>';
+  }
+  function poleMarkNode(p){
+    return '<circle cx="'+p.x+'" cy="'+p.y+'" r="3" fill="var(--spindle)"/>';
+  }
+  /* scene.spindle: 'bipolar' (fibers from BOTH poles to every point — used
+     when each chromosome's two sister-chromatid kinetochores face opposite
+     poles, as in mitosis/meiosis-II metaphase) or 'monopolar' (each point
+     pulled by only its nearer pole — used at anaphase, and at meiosis-I
+     metaphase where each homolog of a bivalent is oriented toward a single
+     pole). points are the {x,y} centromere positions (either the answer-key
+     chromosomes, or the workspace's slot targets) grouped by whichever cell
+     they sit in. */
+  function spindleSVG(scene, points){
+    if(!scene.spindle || !points.length) return '';
+    var mode = scene.spindle;
+    var groups = {};
+    points.forEach(function(p){
+      var cell = nearestCell(scene.cells, p);
+      var key = cell.cx+','+cell.cy;
+      (groups[key] = groups[key] || {cell:cell, pts:[]}).pts.push(p);
+    });
+    var out='';
+    Object.keys(groups).forEach(function(k){
+      var g=groups[k], cell=g.cell;
+      var top={x:cell.cx, y:cell.cy-cell.r*0.88};
+      var bot={x:cell.cx, y:cell.cy+cell.r*0.88};
+      g.pts.forEach(function(p){
+        if(mode==='bipolar'){ out += fiberLine(top,p) + fiberLine(bot,p); }
+        else { out += fiberLine((p.y<cell.cy?top:bot), p); }
+      });
+      out += poleMarkNode(top) + poleMarkNode(bot);
+    });
+    return out;
+  }
+
+  function ch(id,pair,origin,state,x,y,rot){
+    return {id:id, pair:pair, origin:origin, state:state, x:x, y:y, rot:rot||0};
+  }
+
+  /* static (non-interactive) scene renderer: used for home previews & the "previous step" reference panel */
+  function sceneSVG(scene, alt){
+    var gid='cg'+(_gid++);
+    var parts=[gradDefs(gid)];
+    scene.cells.forEach(function(c){ parts.push(cellNode(c,gid)); });
+    parts.push(spindleSVG(scene, scene.chromosomes));
+    (scene.brackets||[]).forEach(function(pair){
+      var a=scene.chromosomes.filter(function(c){return c.id===pair[0];})[0];
+      var b=scene.chromosomes.filter(function(c){return c.id===pair[1];})[0];
+      if(a&&b) parts.push(bracketNode(a,b));
+    });
+    scene.chromosomes.forEach(function(c){ parts.push(chromoInstance(c, scene.scale||1)); });
+    return '<svg viewBox="0 0 300 210" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="'+(alt||'염색체 다이어그램')+'">'+parts.join('')+'</svg>';
+  }
+
+  /* interactive workspace background: cells + brackets + empty (unfilled) slot outlines */
+  function workspaceBgSVG(scene, runtimeSlots){
+    var gid='cg'+(_gid++);
+    var parts=[gradDefs(gid)];
+    scene.cells.forEach(function(c){ parts.push(cellNode(c,gid)); });
+    parts.push(spindleSVG(scene, runtimeSlots));
+    (scene.brackets||[]).forEach(function(pair){
+      var a=runtimeSlots.filter(function(c){return c.id===pair[0];})[0];
+      var b=runtimeSlots.filter(function(c){return c.id===pair[1];})[0];
+      if(a&&b) parts.push(bracketNode(a,b));
+    });
+    runtimeSlots.forEach(function(s){ if(!s.filled) parts.push(slotGhostNode(s, scene.scale||1)); });
+    return '<svg viewBox="0 0 300 210" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="염색체를 놓을 세포">'+parts.join('')+'</svg>';
+  }
+
+  function pieceIconSVG(pair,origin,state){
+    var sz = sizeFor(pair,1);
+    var color = origin==='mom' ? 'var(--chromo-mom)' : 'var(--chromo-dad)';
+    return '<svg viewBox="-28 -34 56 68" xmlns="http://www.w3.org/2000/svg">'+chromoNode(state,color,sz.L,sz.w)+'</svg>';
+  }
+
+  var CELL1 = {cx:150,cy:105,r:90};
+  var CELL2L = {cx:85,cy:105,r:62}, CELL2R = {cx:215,cy:105,r:62};
+  var CELL4 = [ {cx:80,cy:65,r:42},{cx:220,cy:65,r:42},{cx:80,cy:150,r:42},{cx:220,cy:150,r:42} ];
+
+  var introScene = {
+    cells:[CELL1], scale:1,
+    chromosomes:[
+      ch('A',1,'mom','loose',108,68,12),
+      ch('B',1,'dad','loose',196,74,-16),
+      ch('C',2,'mom','loose',113,148,-22),
+      ch('D',2,'dad','loose',192,142,20)
+    ]
+  };
+
+  /* ============ MITOSIS stage data ============ */
+  var mitosis = {
+    label:'체세포분열', short:'체세포분열',
+    intro:{
+      title:'간기 — 분열이 시작되기 전',
+      note:'핵 속 유전 물질(염색사)이 가늘고 풀어진 실 모양으로 퍼져 있어요. 이 시기에 DNA가 복제되어 각 염색체는 두 개의 염색분체를 갖게 되지만, 아직 응축되지 않아 눈으로는 굵은 염색체 모양이 보이지 않아요.'
+    },
+    stages:[
+      { key:'m1', label:'전기', full:'전기 (Prophase)',
+        prompt:'간기가 끝나면 핵 속 염색사가 굵고 짧게 응축되기 시작해요. 조각을 끌어다 <b>전기</b>의 염색체 배치를 완성해보세요.',
+        correct:{ scene:{cells:[CELL1],scale:1,chromosomes:[
+            ch('A',1,'mom',2,105,65,20), ch('B',1,'dad',2,205,70,-25),
+            ch('C',2,'mom',2,100,150,-15), ch('D',2,'dad',2,200,145,30)
+          ]},
+          explain:'맞아요! 전기에는 염색사가 응축되어 두 개의 염색분체로 이루어진 막대(X)모양 염색체가 되고, 핵 속에 흩어져 있어요. 아직 정렬이나 접합은 일어나지 않아요.'
+        }
+      },
+      { key:'m2', label:'중기', full:'중기 (Metaphase)',
+        prompt:'염색체가 더 뚜렷해지면서 방추사에 붙어 이동해요. 조각을 끌어다 <b>중기</b>의 염색체 배치를 완성해보세요.',
+        correct:{ scene:{cells:[CELL1],scale:1,spindle:'bipolar',chromosomes:[
+            ch('A',1,'mom',2,80,105,-6), ch('B',1,'dad',2,128,105,5),
+            ch('C',2,'mom',2,178,105,-4), ch('D',2,'dad',2,222,105,6)
+          ]},
+          explain:'맞아요! 중기에는 각 염색체가 하나씩 독립적으로 세포 중앙(적도면)에 한 줄로 정렬해요. 방추사가 각 염색체의 동원체에 연결돼요.'
+        }
+      },
+      { key:'m3', label:'후기', full:'후기 (Anaphase)',
+        prompt:'방추사가 짧아지면서 염색체를 양 극으로 끌어당겨요. 조각을 끌어다 <b>후기</b>의 염색체 배치를 완성해보세요.',
+        correct:{ scene:{cells:[CELL1],scale:1,spindle:'monopolar',chromosomes:[
+            ch('A1',1,'mom',1,78,50,0), ch('B1',1,'dad',1,118,50,0), ch('C1',2,'mom',1,182,50,0), ch('D1',2,'dad',1,222,50,0),
+            ch('A2',1,'mom',1,78,160,0), ch('B2',1,'dad',1,118,160,0), ch('C2',2,'mom',1,182,160,0), ch('D2',2,'dad',1,222,160,0)
+          ]},
+          explain:'맞아요! 후기에는 각 염색체의 자매염색분체가 분리되어 각각 하나의 독립된 염색체가 되고, 방추사에 끌려 양 극으로 이동해요. 양쪽 극에는 완전히 동일한 구성의 염색체 세트가 모여요.'
+        }
+      },
+      { key:'m4', label:'말기', full:'말기 (Telophase)',
+        prompt:'염색체가 양 극에 다 도착하면 세포질분열이 함께 일어나요. 조각을 끌어다 <b>말기</b>의 염색체 배치를 완성해보세요.',
+        correct:{ scene:{cells:[CELL2L,CELL2R],scale:0.75,chromosomes:[
+            ch('A1',1,'mom',1,60,85,0), ch('B1',1,'dad',1,105,85,0), ch('C1',2,'mom',1,65,130,0), ch('D1',2,'dad',1,100,130,0),
+            ch('A2',1,'mom',1,190,85,0), ch('B2',1,'dad',1,235,85,0), ch('C2',2,'mom',1,195,130,0), ch('D2',2,'dad',1,230,130,0)
+          ]},
+          explain:'맞아요! 세포질분열이 일어나 유전적으로 완전히 동일한 딸세포 2개가 만들어져요. 각 딸세포는 원래 세포와 똑같은 염색체 수(2n=4)를 가져요.'
+        }
+      }
+    ]
+  };
+
+  /* ============ MEIOSIS stage data ============ */
+  var meiosis = {
+    label:'생식세포분열(감수분열)', short:'생식세포분열',
+    intro:{
+      title:'간기 — 분열이 시작되기 전',
+      note:'체세포분열과 마찬가지로 간기에 DNA가 한 번 복제돼요. 이후 연속된 두 번의 분열(감수 1분열, 감수 2분열)을 거쳐 염색체 수가 절반인 생식세포 4개가 만들어져요.'
+    },
+    stages:[
+      { key:'e1', label:'전기Ⅰ', full:'감수 1분열 전기',
+        prompt:'감수 1분열이 시작돼요. 조각을 끌어다 <b>전기Ⅰ</b>의 염색체 배치를 완성해보세요.',
+        correct:{ scene:{cells:[CELL1],scale:1,brackets:[['A','B'],['C','D']],chromosomes:[
+            ch('A',1,'mom',2,105,92,-8), ch('B',1,'dad',2,105,113,8),
+            ch('C',2,'mom',2,195,95,6), ch('D',2,'dad',2,195,110,-6)
+          ]},
+          explain:'맞아요! 전기Ⅰ에는 크기와 모양이 같은 상동염색체끼리 접합(synapsis)해 2가염색체(4분염색체)를 형성해요. 이 접합은 감수분열만의 특징이에요.'
+        }
+      },
+      { key:'e2', label:'중기Ⅰ', full:'감수 1분열 중기',
+        prompt:'2가염색체가 세포 중앙으로 이동해요. 조각을 끌어다 <b>중기Ⅰ</b>의 염색체 배치를 완성해보세요.',
+        correct:{ scene:{cells:[CELL1],scale:1,spindle:'monopolar',brackets:[['A','B'],['C','D']],chromosomes:[
+            ch('A',1,'mom',2,110,93,0), ch('B',1,'dad',2,110,117,0),
+            ch('C',2,'mom',2,190,95,0), ch('D',2,'dad',2,190,115,0)
+          ]},
+          explain:'맞아요! 중기Ⅰ에는 상동염색체 쌍(2가염색체)이 짝을 이룬 채로 세포 중앙에 나란히 정렬해요. 개별 염색체가 아니라 쌍째로 정렬하는 것이 핵심이에요.'
+        }
+      },
+      { key:'e3', label:'후기Ⅰ', full:'감수 1분열 후기',
+        prompt:'접합했던 2가염색체가 갈라져요. 조각을 끌어다 <b>후기Ⅰ</b>의 염색체 배치를 완성해보세요.',
+        correct:{ scene:{cells:[CELL1],scale:1,spindle:'monopolar',originFlexible:true,chromosomes:[
+            ch('A',1,'mom',2,115,50,0), ch('D',2,'dad',2,185,50,0),
+            ch('B',1,'dad',2,115,160,0), ch('C',2,'mom',2,185,160,0)
+          ]},
+          explain:'맞아요! 후기Ⅰ에는 자매염색분체는 그대로 붙어있고, 접합했던 상동염색체끼리 서로 떨어져 양 극으로 이동해요. 이 때문에 염색체 수가 절반으로 줄어드는 감수(reduction)가 일어나요. (참고: 이때 상동염색체 쌍마다 어느 극으로 갈지는 무작위로 정해지기 때문에, 그림과 다른 색 조합으로 나뉘어도 정답이에요.)'
+        }
+      },
+      { key:'e4', label:'말기Ⅰ', full:'감수 1분열 말기',
+        prompt:'상동염색체가 양 극에 도착하면 세포질분열이 일어나요. 조각을 끌어다 <b>말기Ⅰ</b>의 염색체 배치를 완성해보세요.',
+        correct:{ scene:{cells:[CELL2L,CELL2R],scale:0.75,originFlexible:true,chromosomes:[
+            ch('A',1,'mom',2,65,90,0), ch('D',2,'dad',2,105,122,0),
+            ch('B',1,'dad',2,195,90,0), ch('C',2,'mom',2,235,122,0)
+          ]},
+          explain:'맞아요! 감수 1분열 결과 딸세포 2개가 만들어지고, 각 세포는 상동염색체 쌍 중 하나씩만 가져 염색체 수가 절반(n=2)이 돼요. 단, 각 염색체는 아직 자매염색분체 2개로 이루어져 있어요. (참고: 어느 쪽 세포에 엄마 염색체가 가고 아빠 염색체가 가는지는 쌍마다 무작위라서, 그림과 다른 색 조합으로 나뉘어도 똑같이 정답이에요. 이 무작위 배분 때문에 감수분열을 할 때마다 생식세포의 유전 조합이 달라질 수 있어요.)'
+        }
+      },
+      { key:'e5', label:'전기Ⅱ', full:'감수 2분열 전기',
+        prompt:'두 딸세포에서 각각 감수 2분열이 시작돼요. 조각을 끌어다 <b>전기Ⅱ</b>의 배치를 완성해보세요.',
+        correct:{ scene:{cells:[CELL2L,CELL2R],scale:0.75,chromosomes:[
+            ch('A',1,'mom',2,68,88,-8), ch('D',2,'dad',2,102,124,8),
+            ch('B',1,'dad',2,198,88,8), ch('C',2,'mom',2,232,124,-8)
+          ]},
+          explain:'맞아요! 두 세포 안에는 이미 상동염색체 중 하나씩만 있어서 서로 짝지을 상대가 없어요. 각 염색체는 여전히 X모양(자매염색분체 2개)을 유지한 채 다음 분열을 준비해요.'
+        }
+      },
+      { key:'e6', label:'중기Ⅱ', full:'감수 2분열 중기',
+        prompt:'각 세포 안에서 염색체가 다시 정렬해요. 조각을 끌어다 <b>중기Ⅱ</b>의 배치를 완성해보세요.',
+        correct:{ scene:{cells:[CELL2L,CELL2R],scale:0.75,spindle:'bipolar',chromosomes:[
+            ch('A',1,'mom',2,68,105,0), ch('D',2,'dad',2,102,105,0),
+            ch('B',1,'dad',2,198,105,0), ch('C',2,'mom',2,232,105,0)
+          ]},
+          explain:'맞아요! 두 세포 각각에서 염색체가 하나씩 독립적으로 그 세포의 중앙에 정렬해요. 체세포분열의 중기와 같은 원리이지만, 염색체 수는 절반(n)이라는 점이 달라요.'
+        }
+      },
+      { key:'e7', label:'후기Ⅱ', full:'감수 2분열 후기',
+        prompt:'두 세포 각각에서 염색분체가 갈라져요. 조각을 끌어다 <b>후기Ⅱ</b>의 배치를 완성해보세요.',
+        correct:{ scene:{cells:[CELL2L,CELL2R],scale:0.75,spindle:'monopolar',chromosomes:[
+            ch('A1',1,'mom',1,68,82,0), ch('A2',1,'mom',1,68,128,0), ch('D1',2,'dad',1,102,82,0), ch('D2',2,'dad',1,102,128,0),
+            ch('B1',1,'dad',1,198,82,0), ch('B2',1,'dad',1,198,128,0), ch('C1',2,'mom',1,232,82,0), ch('C2',2,'mom',1,232,128,0)
+          ]},
+          explain:'맞아요! 두 세포 모두에서 자매염색분체가 분리되어 각 세포 안의 양 극으로 이동해요. 이제 곧 4개의 딸세포로 나뉠 준비가 끝났어요.'
+        }
+      },
+      { key:'e8', label:'말기Ⅱ', full:'감수 2분열 말기',
+        prompt:'각 세포에서 세포질분열이 일어나 분열이 마무리돼요. 조각을 끌어다 <b>말기Ⅱ</b>의 최종 배치를 완성해보세요.',
+        correct:{ scene:{cells:CELL4,scale:0.55,chromosomes:[
+            ch('A1',1,'mom',1,70,55,0), ch('D1',2,'dad',1,92,75,0),
+            ch('B1',1,'dad',1,210,55,0), ch('C1',2,'mom',1,232,75,0),
+            ch('A2',1,'mom',1,70,140,0), ch('D2',2,'dad',1,92,160,0),
+            ch('B2',1,'dad',1,210,140,0), ch('C2',2,'mom',1,232,160,0)
+          ]},
+          explain:'맞아요! 감수 1분열과 감수 2분열을 거쳐 염색체 수가 절반(n=2)인 생식세포 4개가 만들어져요. 왼쪽 위·아래 두 세포는 같은 세포(감수 1분열로 나뉜 왼쪽 딸세포)의 자매염색분체가 갈라진 것이라 유전 정보가 서로 같고, 오른쪽 위·아래 두 세포도 마찬가지로 서로 같아요. 하지만 감수 1분열에서 상동염색체가 무작위로 나뉘었기 때문에, 왼쪽 세포들과 오른쪽 세포들은 서로 다른 염색체 조합을 가져요. 이런 무작위 분배가 생식세포마다 유전적 다양성을 만들어내는 원리예요.'
+        }
+      }
+    ]
+  };
+
+  var MODES = {mitosis:mitosis, meiosis:meiosis};
+
+  /* ============ decoy pieces (mixed into every tray) ============ */
+  function buildDecoys(stage){
+    var correctState = stage.correct.scene.chromosomes[0].state;
+    var oppositeState = correctState===2 ? 1 : 2;
+    var d1reason = correctState===2
+      ? '이 조각은 이미 자매염색분체가 분리된 모습이에요. 지금 단계에는 아직 두 염색분체가 붙어 있어야 해요.'
+      : '이 조각은 아직 두 염색분체가 붙어 있는 모습이에요. 지금 단계에는 이미 자매염색분체가 분리되어 있어야 해요.';
+    var d2reason = '이 조각은 아직 응축되지 않은 간기 상태의 염색사예요. 지금 단계에는 어울리지 않아요.';
+    return [
+      {id:'decoy1', pair:1, origin:'mom', state:oppositeState, decoy:true, reason:d1reason},
+      {id:'decoy2', pair:2, origin:'dad', state:'loose', decoy:true, reason:d2reason}
+    ];
+  }
+
+  /* ============ app state ============ */
+  var state = { mode:null, stageIdx:0 };
+  var app = document.getElementById('app');
+
+  function shuffled(arr){
+    var a=arr.slice();
+    for(var i=a.length-1;i>0;i--){
+      var j=Math.floor(Math.random()*(i+1));
+      var t=a[i]; a[i]=a[j]; a[j]=t;
+    }
+    return a;
+  }
+
+  function go(mode){
+    state = {mode:mode, stageIdx:0};
+    render();
+    window.scrollTo({top:0, behavior:'auto'});
+  }
+  function goHome(){
+    state = {mode:null, stageIdx:0};
+    render();
+  }
+
+  function ensureRuntime(stage){
+    if(state.runtime && state.runtimeStageKey===stage.key) return;
+    var slots = stage.correct.scene.chromosomes.map(function(c){
+      return {id:c.id, pair:c.pair, origin:c.origin, state:c.state, x:c.x, y:c.y, filled:false};
+    });
+    var correctPieces = slots.map(function(s){
+      return {id:'piece_'+s.id, pair:s.pair, origin:s.origin, state:s.state, decoy:false, location:'tray'};
+    });
+    var decoys = buildDecoys(stage).map(function(d){ d.location='tray'; return d; });
+    state.runtime = { slots:slots, pieces: shuffled(correctPieces.concat(decoys)) };
+    state.runtimeStageKey = stage.key;
+    state.resolved = false;
+    state.resolvedExplain = null;
+    state.lastFeedback = null;
+    state.lastBadPieceId = null;
+  }
+
+  function nextStage(){
+    var m = MODES[state.mode];
+    state.stageIdx++;
+    state.runtime = null; state.runtimeStageKey=null;
+    state.resolved=false; state.resolvedExplain=null; state.lastFeedback=null; state.lastBadPieceId=null;
+    if(state.stageIdx >= m.stages.length){ state.done = true; }
+    render();
+    window.scrollTo({top:0, behavior:'auto'});
+  }
+
+  /* Matching is by CELL, not by exact slot position: within a cell, left-right
+     order along the equator (or which "column" a chromosome sits in) carries
+     no biological meaning, so any spot inside the correct cell that still
+     needs this piece's chromosome (same pair/origin/state) accepts it. */
+  function handleDrop(pieceId, clientX, clientY){
+    var piece = state.runtime.pieces.filter(function(p){return p.id===pieceId;})[0];
+    if(!piece) return;
+    var wsEl = document.getElementById('workspace');
+    var wsRect = wsEl.getBoundingClientRect();
+    var inside = clientX>=wsRect.left && clientX<=wsRect.right && clientY>=wsRect.top && clientY<=wsRect.bottom;
+    if(!inside){ state.lastFeedback=null; render(); return; }
+
+    var fx=(clientX-wsRect.left)/wsRect.width*300;
+    var fy=(clientY-wsRect.top)/wsRect.height*210;
+    var stage = MODES[state.mode].stages[state.stageIdx];
+    var scene = stage.correct.scene;
+    var slots = state.runtime.slots;
+
+    if(piece.decoy){
+      state.lastFeedback={type:'no', text:piece.reason};
+      state.lastBadPieceId=pieceId;
+      render(); return;
+    }
+
+    var targetCell = nearestCell(scene.cells, {x:fx,y:fy});
+    var cellSlots = slots.filter(function(s){ return nearestCell(scene.cells, s) === targetCell; });
+    /* Homologous pairs assort independently at meiosis I, so which specific
+       parent (mom/dad) ends up in which daughter cell is random per pair —
+       origin isn't checked here when the stage marks itself origin-flexible,
+       only that the right pair+condensation-state lands in the cell. */
+    var checkOrigin = !scene.originFlexible;
+
+    var match=null, matchD=Infinity;
+    cellSlots.forEach(function(s){
+      if(s.filled) return;
+      if(s.pair===piece.pair && (!checkOrigin || s.origin===piece.origin) && s.state===piece.state){
+        var dx=s.x-fx, dy=s.y-fy, d=dx*dx+dy*dy;
+        if(d<matchD){ matchD=d; match=s; }
+      }
+    });
+
+    if(match){
+      match.filled=true;
+      piece.location='placed'; piece.slotId=match.id;
+      state.lastFeedback={type:'ok', text:'맞아요! 잘 놓았어요.'};
+      state.lastBadPieceId=null;
+      var allFilled = slots.every(function(s){return s.filled;});
+      if(allFilled){
+        state.resolved=true;
+        state.resolvedExplain = stage.correct.explain;
+      }
+      render();
+      return;
+    }
+
+    var alreadyThere = cellSlots.some(function(s){
+      return s.filled && s.pair===piece.pair && (!checkOrigin || s.origin===piece.origin) && s.state===piece.state;
+    });
+    if(alreadyThere){
+      state.lastFeedback={type:'no', text:'이미 같은 염색체가 놓여 있어요. 다른 조각을 놓아보세요.'};
+    } else {
+      state.lastFeedback={type:'no', text:'이 조각은 이 자리와 어울리지 않아요. 염색체의 크기와 색을 다시 확인해보세요.'};
+    }
+    state.lastBadPieceId=pieceId;
+    render();
+  }
+
+  function attachDragHandlers(){
+    var stageArea = document.getElementById('stageArea');
+    var dragLayer = document.getElementById('dragLayer');
+    if(!stageArea || !dragLayer) return;
+    Array.prototype.forEach.call(app.querySelectorAll('.piece.in-tray'), function(el){
+      el.addEventListener('pointerdown', function(e){
+        if(state.resolved) return;
+        e.preventDefault();
+        var pid = el.getAttribute('data-pid');
+        var saRect = stageArea.getBoundingClientRect();
+        var elRect = el.getBoundingClientRect();
+        var offsetX = e.clientX - (elRect.left+elRect.width/2);
+        var offsetY = e.clientY - (elRect.top+elRect.height/2);
+        el.classList.add('dragging');
+        dragLayer.appendChild(el);
+
+        function place(cx,cy){
+          var x = cx - saRect.left - offsetX;
+          var y = cy - saRect.top - offsetY;
+          el.style.position='absolute';
+          el.style.left = x+'px';
+          el.style.top = y+'px';
+          el.style.transform='translate(-50%,-50%)';
+          el.style.pointerEvents='auto';
+        }
+        place(e.clientX, e.clientY);
+
+        function onMove(ev){ place(ev.clientX, ev.clientY); }
+        function onUp(ev){
+          document.removeEventListener('pointermove', onMove);
+          document.removeEventListener('pointerup', onUp);
+          document.removeEventListener('pointercancel', onUp);
+          handleDrop(pid, ev.clientX, ev.clientY);
+        }
+        document.addEventListener('pointermove', onMove);
+        document.addEventListener('pointerup', onUp);
+        document.addEventListener('pointercancel', onUp);
+      });
+    });
+  }
+
+  /* ============ views ============ */
+
+  function renderHome(){
+    var mPrev = sceneSVG({cells:[CELL2L,CELL2R],scale:0.75,chromosomes:[
+      ch('A1',1,'mom',1,60,85,0), ch('B1',1,'dad',1,105,85,0), ch('C1',2,'mom',1,65,130,0), ch('D1',2,'dad',1,100,130,0),
+      ch('A2',1,'mom',1,190,85,0), ch('B2',1,'dad',1,235,85,0), ch('C2',2,'mom',1,195,130,0), ch('D2',2,'dad',1,230,130,0)
+    ]}, '체세포분열 결과 미리보기');
+    var gPrev = sceneSVG({cells:CELL4,scale:0.55,chromosomes:[
+      ch('A1',1,'mom',1,70,55,0), ch('D1',2,'dad',1,92,75,0),
+      ch('B1',1,'dad',1,210,55,0), ch('C1',2,'mom',1,232,75,0),
+      ch('A2',1,'mom',1,70,140,0), ch('D2',2,'dad',1,92,160,0),
+      ch('B2',1,'dad',1,210,140,0), ch('C2',2,'mom',1,232,160,0)
+    ]}, '생식세포분열 결과 미리보기');
+
+    app.innerHTML =
+      '<div class="topbar"><div class="brand"><span class="mark">🧬</span><h1>염색체 관찰소</h1><span class="tag">중3 과학 · 생식과 유전</span></div></div>'+
+      '<div class="intro">'+
+        '<span class="unit-badge">5단원 · 생식과 유전</span>'+
+        '<h2>체세포는 어떻게 나뉘고, 생식세포는 왜 다르게 나뉠까?</h2>'+
+        '<p>단계마다 염색체 조각을 직접 끌어다 놓아 세포의 모습을 완성해 보세요. 헷갈리기 쉬운 조각도 섞여 있으니, 왜 그 자리에 그 염색체가 와야 하는지 생각하며 맞춰 보세요.</p>'+
+      '</div>'+
+      '<div class="mode-grid">'+
+        '<div class="mode-card mitosis" data-mode="mitosis" tabindex="0" role="button" aria-label="체세포분열 체험 시작">'+
+          '<div class="mode-preview">'+mPrev+'</div>'+
+          '<h3>체세포분열</h3>'+
+          '<p class="desc">몸을 구성하는 세포가 나뉘는 과정. 딸세포 2개는 원래 세포와 염색체 수·구성이 완전히 같아요.</p>'+
+          '<div class="meta"><span>4단계</span><span>딸세포 2개 · 2n=4</span></div>'+
+          '<button class="cta" type="button">체세포분열 시작하기 →</button>'+
+        '</div>'+
+        '<div class="mode-card meiosis" data-mode="meiosis" tabindex="0" role="button" aria-label="생식세포분열 체험 시작">'+
+          '<div class="mode-preview">'+gPrev+'</div>'+
+          '<h3>생식세포분열 (감수분열)</h3>'+
+          '<p class="desc">생식세포를 만드는 과정. 두 번의 연속된 분열을 거쳐 염색체 수가 절반인 딸세포 4개가 만들어져요.</p>'+
+          '<div class="meta"><span>8단계</span><span>딸세포 4개 · n=2</span></div>'+
+          '<button class="cta" type="button">생식세포분열 시작하기 →</button>'+
+        '</div>'+
+      '</div>'+
+      '<div class="legend">'+
+        '<span class="swatch"><span class="dot" style="background:var(--chromo-mom)"></span>엄마에게서 온 염색체</span>'+
+        '<span class="swatch"><span class="dot" style="background:var(--chromo-dad)"></span>아빠에게서 온 염색체</span>'+
+        '<span>큰 염색체·작은 염색체 = 서로 다른 상동염색체 쌍 (2n=4 모델)</span>'+
+      '</div>'+
+      '<footer class="foot">© 수민T의 과학실험실. All rights reserved.</footer>';
+
+    Array.prototype.forEach.call(app.querySelectorAll('[data-mode]'), function(el){
+      el.addEventListener('click', function(){ go(el.getAttribute('data-mode')); });
+      el.addEventListener('keydown', function(e){ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); go(el.getAttribute('data-mode')); } });
+    });
+  }
+
+  function renderStepper(m){
+    var html = '<div class="stepper">';
+    m.stages.forEach(function(s,i){
+      var cls = 'step';
+      if(i < state.stageIdx || state.done) cls += ' done';
+      else if(i === state.stageIdx && !state.done) cls += ' current';
+      html += '<span class="'+cls+'"><span class="n">'+(i < state.stageIdx || state.done ? '✓' : (i+1))+'</span>'+s.label+'</span>';
+    });
+    html += '</div>';
+    return html;
+  }
+
+  function renderStage(){
+    var m = MODES[state.mode];
+    var stage = m.stages[state.stageIdx];
+    ensureRuntime(stage);
+
+    var prevTitle, prevScene, prevNote;
+    if(state.stageIdx === 0){
+      prevTitle = m.intro.title; prevScene = introScene; prevNote = m.intro.note;
+    } else {
+      var prevStage = m.stages[state.stageIdx-1];
+      prevTitle = prevStage.full; prevScene = prevStage.correct.scene; prevNote = prevStage.correct.explain;
+    }
+
+    var scale = stage.correct.scene.scale || 1;
+    var bgSvg = workspaceBgSVG(stage.correct.scene, state.runtime.slots);
+
+    var placedHtml = state.runtime.pieces.filter(function(p){return p.location==='placed';}).map(function(p){
+      var slot = state.runtime.slots.filter(function(s){return s.id===p.slotId;})[0];
+      var leftPct = (slot.x/300*100), topPct=(slot.y/210*100);
+      return '<div class="piece placed" style="position:absolute; left:'+leftPct+'%; top:'+topPct+'%; transform:translate(-50%,-50%) scale('+scale+');">'+pieceIconSVG(p.pair,p.origin,p.state)+'</div>';
+    }).join('');
+
+    var trayHtml = '';
+    if(!state.resolved){
+      trayHtml = '<div class="tray" id="tray"><span class="tray-label">염색체 조각 (끌어다 놓기)</span>' +
+        state.runtime.pieces.filter(function(p){return p.location==='tray';}).map(function(p){
+          var shakeCls = (state.lastBadPieceId===p.id) ? ' shake' : '';
+          return '<div class="piece in-tray'+shakeCls+'" data-pid="'+p.id+'">'+pieceIconSVG(p.pair,p.origin,p.state)+'</div>';
+        }).join('') +
+      '</div>';
+    }
+
+    var feedbackHtml = '';
+    if(state.resolved){
+      feedbackHtml = '<div class="feedback ok"><span class="icon">✅</span><div class="body"><b>이 단계를 완성했어요!</b><p>'+state.resolvedExplain+'</p></div></div>'+
+        '<button class="next-btn" id="nextBtn" type="button">'+(state.stageIdx+1 < m.stages.length ? '다음 단계로 →' : '결과 보기 →')+'</button>';
+    } else if(state.lastFeedback){
+      if(state.lastFeedback.type==='ok'){
+        feedbackHtml = '<div class="feedback ok"><span class="icon">✅</span><div class="body"><p>'+state.lastFeedback.text+' 남은 조각도 계속 놓아보세요.</p></div></div>';
+      } else {
+        feedbackHtml = '<div class="feedback no"><span class="icon">❌</span><div class="body"><b>다시 한번 살펴볼까요?</b><p>'+state.lastFeedback.text+'</p></div></div>';
+      }
+    }
+
+    app.innerHTML =
+      '<div class="topbar"><div class="brand"><span class="mark">🧬</span><h1>염색체 관찰소</h1><span class="tag">'+m.label+'</span></div>'+
+      '<button class="home-btn" id="homeBtn" type="button">🏠 처음으로</button></div>'+
+      renderStepper(m)+
+      '<div class="stage-head"><div class="kicker">'+(state.stageIdx+1)+' / '+m.stages.length+' 단계</div><h2>'+stage.full+'</h2></div>'+
+      '<div class="layout">'+
+        '<div class="ref-panel">'+
+          '<div class="label">직전 확인된 모습</div>'+
+          '<div class="ref-title">'+prevTitle+'</div>'+
+          '<div class="ref-diagram">'+sceneSVG(prevScene, prevTitle)+'</div>'+
+          '<p class="ref-note">'+prevNote+'</p>'+
+        '</div>'+
+        '<div class="question-panel" id="stageArea">'+
+          '<div class="prompt">'+stage.prompt+'</div>'+
+          '<div class="workspace" id="workspace">'+
+            '<div class="bg-layer">'+bgSvg+'</div>'+
+            '<div class="pieces-layer">'+placedHtml+'</div>'+
+          '</div>'+
+          trayHtml+
+          feedbackHtml+
+          '<div class="drag-layer" id="dragLayer"></div>'+
+        '</div>'+
+      '</div>'+
+      '<footer class="foot">© 수민T의 과학실험실. All rights reserved.</footer>';
+
+    document.getElementById('homeBtn').addEventListener('click', goHome);
+    var nb = document.getElementById('nextBtn');
+    if(nb) nb.addEventListener('click', nextStage);
+    attachDragHandlers();
+  }
+
+  function renderComplete(){
+    var m = MODES[state.mode];
+    var otherMode = state.mode==='mitosis' ? 'meiosis' : 'mitosis';
+    app.innerHTML =
+      '<div class="topbar"><div class="brand"><span class="mark">🧬</span><h1>염색체 관찰소</h1><span class="tag">'+m.label+' 완료</span></div>'+
+      '<button class="home-btn" id="homeBtn" type="button">🏠 처음으로</button></div>'+
+      '<div class="complete">'+
+        '<h2>🎉 '+m.label+' 관찰을 모두 마쳤어요</h2>'+
+        '<p class="lead">전기부터 말기까지, 염색체 조각을 직접 놓아보며 모양과 행동 변화를 확인했어요. 두 분열 과정의 차이를 표로 정리해볼까요?</p>'+
+        '<div class="compare-wrap"><table class="compare"><thead><tr><th>구분</th><th>체세포분열</th><th>생식세포분열(감수분열)</th></tr></thead><tbody>'+
+          '<tr><td>분열 횟수</td><td>1회</td><td>연속 2회 (감수 1분열 → 감수 2분열)</td></tr>'+
+          '<tr><td>딸세포 수</td><td class="hl-mitosis">2개</td><td class="hl-meiosis">4개</td></tr>'+
+          '<tr><td>딸세포의 염색체 수</td><td class="hl-mitosis">2n (원래와 동일)</td><td class="hl-meiosis">n (절반으로 감소)</td></tr>'+
+          '<tr><td>상동염색체의 접합(2가염색체)</td><td>일어나지 않음</td><td>전기Ⅰ에서 일어남</td></tr>'+
+          '<tr><td>딸세포 간 유전적 구성</td><td>서로 완전히 동일</td><td>서로 다름</td></tr>'+
+          '<tr><td>일어나는 곳 / 목적</td><td>몸 전체의 세포 · 생장과 재생</td><td>생식기관 · 생식세포(정자·난자) 형성</td></tr>'+
+        '</tbody></table></div>'+
+        '<div class="complete-actions">'+
+          '<button class="btn-primary" id="otherBtn" type="button">🔬 '+MODES[otherMode].short+' 체험하기</button>'+
+          '<button class="btn-secondary" id="homeBtn2" type="button">처음 화면으로</button>'+
+        '</div>'+
+      '</div>'+
+      '<footer class="foot">© 수민T의 과학실험실. All rights reserved.</footer>';
+
+    document.getElementById('homeBtn').addEventListener('click', goHome);
+    document.getElementById('homeBtn2').addEventListener('click', goHome);
+    document.getElementById('otherBtn').addEventListener('click', function(){ go(otherMode); });
+  }
+
+  function render(){
+    if(!state.mode) return renderHome();
+    if(state.done) return renderComplete();
+    return renderStage();
+  }
+
+  render();
+})();
+</script>
+
+</body>
+</html>
