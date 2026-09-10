@@ -209,6 +209,22 @@
   .ref-panel .ref-diagram svg{ display:block; width:100%; height:auto; filter:var(--svg-shadow); }
   .ref-panel .ref-note{ font-size:0.82rem; color:var(--ink-soft); margin-top:10px; }
 
+  /* ---------- interphase intro screen ---------- */
+  .intro-lead{
+    background:var(--surface); border:1px solid var(--line); border-radius:16px;
+    padding:16px 20px; margin:10px 0 18px; box-shadow:var(--shadow); font-size:0.95rem;
+  }
+  .intro-split{ display:grid; grid-template-columns:1fr 1fr; gap:18px; margin-bottom:20px; }
+  @media (max-width:680px){ .intro-split{ grid-template-columns:1fr; } }
+  .intro-panel{
+    background:var(--surface); border:1px solid var(--line); border-radius:16px;
+    padding:16px; box-shadow:var(--shadow);
+  }
+  .intro-panel-title{ font-weight:600; margin-bottom:10px; }
+  .intro-diagram{ background:var(--surface-2); border-radius:10px; border:1px solid var(--line); padding:6px; }
+  .intro-diagram svg{ display:block; width:100%; height:auto; filter:var(--svg-shadow); }
+  .intro-panel p{ font-size:0.88rem; color:var(--ink-soft); margin:10px 0 0; }
+
   .question-panel{ min-width:0; position:relative; }
   .prompt{
     background:var(--surface); border:1px solid var(--line); border-radius:16px;
@@ -305,9 +321,20 @@
   var _gid = 0;
 
   function chromoNode(state, color, L, w){
-    if(state==='loose'){
+    if(state==='loose' || state==='loose2'){
+      /* interphase chromatin: a thin, loosely wound thread. 'loose' = before
+         DNA replication (one DNA molecule per thread). 'loose2' = after
+         replication: the DNA amount has doubled, but the thread is still
+         uncondensed, so the two copies are drawn as two thin strands running
+         very close together rather than as a distinct, separable X shape —
+         sister chromatids are NOT visually distinguishable at this point,
+         which is scientifically accurate (condensation hasn't happened yet). */
       var len=L*1.55, amp=w*1.0;
-      return '<path d="M0,'+(-len/2)+' C '+amp+','+(-len/4)+' '+(-amp)+','+(-len/9)+' 0,0 C '+amp+','+(len/9)+' '+(-amp)+','+(len/4)+' 0,'+(len/2)+'" fill="none" stroke="'+color+'" stroke-width="'+(w*0.42)+'" stroke-linecap="round"/>';
+      var strand = function(off){
+        return '<path d="M'+off+','+(-len/2)+' C '+(amp+off)+','+(-len/4)+' '+(-amp+off)+','+(-len/9)+' '+off+',0 C '+(amp+off)+','+(len/9)+' '+(-amp+off)+','+(len/4)+' '+off+','+(len/2)+'" fill="none" stroke="'+color+'" stroke-width="'+(w*0.34)+'" stroke-linecap="round"/>';
+      };
+      if(state==='loose2') return strand(-w*0.26) + strand(w*0.26);
+      return strand(0);
     }
     /* condensed chromatid: a rounded rod that narrows at its midpoint (the
        centromere constriction), so a single chromatid already reads as one
@@ -391,6 +418,7 @@
   function spindleSVG(scene, points){
     if(!scene.spindle || !points.length) return '';
     var mode = scene.spindle;
+    var horizontal = scene.spindleAxis === 'horizontal';
     var groups = {};
     points.forEach(function(p){
       var cell = nearestCell(scene.cells, p);
@@ -400,13 +428,22 @@
     var out='';
     Object.keys(groups).forEach(function(k){
       var g=groups[k], cell=g.cell;
-      var top={x:cell.cx, y:cell.cy-cell.r*0.88};
-      var bot={x:cell.cx, y:cell.cy+cell.r*0.88};
+      var poleA, poleB;
+      if(horizontal){
+        poleA={x:cell.cx-cell.r*0.88, y:cell.cy};
+        poleB={x:cell.cx+cell.r*0.88, y:cell.cy};
+      } else {
+        poleA={x:cell.cx, y:cell.cy-cell.r*0.88};
+        poleB={x:cell.cx, y:cell.cy+cell.r*0.88};
+      }
       g.pts.forEach(function(p){
-        if(mode==='bipolar'){ out += fiberLine(top,p) + fiberLine(bot,p); }
-        else { out += fiberLine((p.y<cell.cy?top:bot), p); }
+        if(mode==='bipolar'){ out += fiberLine(poleA,p) + fiberLine(poleB,p); }
+        else {
+          var nearer = horizontal ? (p.x<cell.cx?poleA:poleB) : (p.y<cell.cy?poleA:poleB);
+          out += fiberLine(nearer, p);
+        }
       });
-      out += poleMarkNode(top) + poleMarkNode(bot);
+      out += poleMarkNode(poleA) + poleMarkNode(poleB);
     });
     return out;
   }
@@ -452,10 +489,25 @@
   }
 
   var CELL1 = {cx:150,cy:105,r:90};
-  var CELL2L = {cx:85,cy:105,r:62}, CELL2R = {cx:215,cy:105,r:62};
-  var CELL4 = [ {cx:80,cy:65,r:42},{cx:220,cy:65,r:42},{cx:80,cy:150,r:42},{cx:220,cy:150,r:42} ];
+  /* Spindle poles are always drawn along the vertical (top/bottom) axis of a
+     cell by default, so a cell that has just finished dividing must sit
+     ABOVE/BELOW its sibling (not side-by-side) to match where the two
+     chromosome groups actually ended up at anaphase. */
+  var CELL2T = {cx:150,cy:58,r:44}, CELL2B = {cx:150,cy:152,r:44};
+  /* Meiosis II re-orients its own spindle to the horizontal axis (a common,
+     scientifically valid textbook convention, and it's what keeps the final
+     4-cell result below a clean, readable 2x2 grid). So each meiosis-I
+     daughter cell (top row / bottom row) splits LEFT/RIGHT into its own two
+     daughters: cells that are horizontally adjacent (same row) come from the
+     same meiosis-I cell and are genetically identical; the top row and
+     bottom row differ from each other because of independent assortment. */
+  var CELL4 = [ {cx:90,cy:58,r:38},{cx:210,cy:58,r:38},{cx:90,cy:152,r:38},{cx:210,cy:152,r:38} ];
 
-  var introScene = {
+  /* interphase reference scenes: chromatin is shown as loose, uncondensed
+     threads (not condensed X-shaped chromosomes) both before and after DNA
+     replication -- only the DNA amount per thread changes, not the visible
+     shape or the chromosome NUMBER. */
+  var introBeforeScene = {
     cells:[CELL1], scale:1,
     chromosomes:[
       ch('A',1,'mom','loose',108,68,12),
@@ -464,13 +516,27 @@
       ch('D',2,'dad','loose',192,142,20)
     ]
   };
+  var introAfterScene = {
+    cells:[CELL1], scale:1,
+    chromosomes:[
+      ch('A',1,'mom','loose2',108,68,12),
+      ch('B',1,'dad','loose2',196,74,-16),
+      ch('C',2,'mom','loose2',113,148,-22),
+      ch('D',2,'dad','loose2',192,142,20)
+    ]
+  };
 
   /* ============ MITOSIS stage data ============ */
   var mitosis = {
     label:'체세포분열', short:'체세포분열',
     intro:{
-      title:'간기 — 분열이 시작되기 전',
-      note:'핵 속 유전 물질(염색사)이 가늘고 풀어진 실 모양으로 퍼져 있어요. 이 시기에 DNA가 복제되어 각 염색체는 두 개의 염색분체를 갖게 되지만, 아직 응축되지 않아 눈으로는 굵은 염색체 모양이 보이지 않아요.'
+      lead:'분열은 핵 속에 염색체가 뚜렷이 보이기 전, <b>간기</b>에서부터 준비가 시작돼요. 간기 동안 무슨 일이 일어나는지 두 시점으로 나누어 살펴볼까요?',
+      beforeTitle:'① DNA 복제 전',
+      beforeNote:'핵 속 유전 물질은 가늘고 풀어진 실 모양의 염색사로 존재해요. 이 시기에는 염색체(염색사) 하나마다 DNA 분자가 1개씩만 있어요.',
+      afterTitle:'② DNA 복제 후',
+      afterNote:'간기 동안 DNA가 복제되어 각 염색사의 DNA 양이 두 배로 늘어나요. 복제된 두 DNA(나중에 자매염색분체가 되어요)는 서로 붙어 있지만, 아직 굵게 응축되지 않아서 두 가닥이 눈으로 구분되어 보이지는 않아요. 이 시기에도 염색체의 수(2n=4)는 변하지 않아요.',
+      title:'간기 — DNA 복제 후',
+      scene: introAfterScene
     },
     stages:[
       { key:'m1', label:'전기', full:'전기 (Prophase)',
@@ -502,11 +568,11 @@
       },
       { key:'m4', label:'말기', full:'말기 (Telophase)',
         prompt:'염색체가 양 극에 다 도착하면 세포질분열이 함께 일어나요. 조각을 끌어다 <b>말기</b>의 염색체 배치를 완성해보세요.',
-        correct:{ scene:{cells:[CELL2L,CELL2R],scale:0.75,chromosomes:[
-            ch('A1',1,'mom',1,60,85,0), ch('B1',1,'dad',1,105,85,0), ch('C1',2,'mom',1,65,130,0), ch('D1',2,'dad',1,100,130,0),
-            ch('A2',1,'mom',1,190,85,0), ch('B2',1,'dad',1,235,85,0), ch('C2',2,'mom',1,195,130,0), ch('D2',2,'dad',1,230,130,0)
+        correct:{ scene:{cells:[CELL2T,CELL2B],scale:0.55,chromosomes:[
+            ch('A1',1,'mom',1,132,44,0), ch('B1',1,'dad',1,164,44,0), ch('C1',2,'mom',1,136,76,0), ch('D1',2,'dad',1,161,76,0),
+            ch('A2',1,'mom',1,132,138,0), ch('B2',1,'dad',1,164,138,0), ch('C2',2,'mom',1,136,170,0), ch('D2',2,'dad',1,161,170,0)
           ]},
-          explain:'맞아요! 세포질분열이 일어나 유전적으로 완전히 동일한 딸세포 2개가 만들어져요. 각 딸세포는 원래 세포와 똑같은 염색체 수(2n=4)를 가져요.'
+          explain:'맞아요! 세포질분열이 일어나 유전적으로 완전히 동일한 딸세포 2개가 만들어져요. 방추사가 위아래 극으로 염색체를 끌어당겼기 때문에 세포질분열도 위아래로 일어나 두 딸세포가 위·아래로 나뉘어요. 각 딸세포는 원래 세포와 똑같은 염색체 수(2n=4)를 가져요.'
         }
       }
     ]
@@ -516,8 +582,13 @@
   var meiosis = {
     label:'생식세포분열(감수분열)', short:'생식세포분열',
     intro:{
-      title:'간기 — 분열이 시작되기 전',
-      note:'체세포분열과 마찬가지로 간기에 DNA가 한 번 복제돼요. 이후 연속된 두 번의 분열(감수 1분열, 감수 2분열)을 거쳐 염색체 수가 절반인 생식세포 4개가 만들어져요.'
+      lead:'감수분열도 체세포분열처럼 <b>간기</b>에서부터 시작돼요. 간기 동안 무슨 일이 일어나는지 두 시점으로 나누어 살펴볼까요?',
+      beforeTitle:'① DNA 복제 전',
+      beforeNote:'핵 속 유전 물질은 가늘고 풀어진 실 모양의 염색사로 존재해요. 이 시기에는 염색체(염색사) 하나마다 DNA 분자가 1개씩만 있어요.',
+      afterTitle:'② DNA 복제 후',
+      afterNote:'간기 동안 DNA가 복제되어 각 염색사의 DNA 양이 두 배로 늘어나요. 복제된 두 DNA(나중에 자매염색분체가 되어요)는 서로 붙어 있지만, 아직 굵게 응축되지 않아서 두 가닥이 눈으로 구분되어 보이지는 않아요. 이 시기에도 염색체의 수(2n=4)는 변하지 않아요. 이후 연속된 두 번의 분열(감수 1분열, 감수 2분열)을 거쳐 염색체 수가 절반인 생식세포 4개가 만들어져요.',
+      title:'간기 — DNA 복제 후',
+      scene: introAfterScene
     },
     stages:[
       { key:'e1', label:'전기Ⅰ', full:'감수 1분열 전기',
@@ -549,49 +620,49 @@
       },
       { key:'e4', label:'말기Ⅰ', full:'감수 1분열 말기',
         prompt:'상동염색체가 양 극에 도착하면 세포질분열이 일어나요. 조각을 끌어다 <b>말기Ⅰ</b>의 염색체 배치를 완성해보세요.',
-        correct:{ scene:{cells:[CELL2L,CELL2R],scale:0.75,originFlexible:true,chromosomes:[
-            ch('A',1,'mom',2,65,90,0), ch('D',2,'dad',2,105,122,0),
-            ch('B',1,'dad',2,195,90,0), ch('C',2,'mom',2,235,122,0)
+        correct:{ scene:{cells:[CELL2T,CELL2B],scale:0.55,originFlexible:true,chromosomes:[
+            ch('A',1,'mom',2,136,47,0), ch('D',2,'dad',2,164,70,0),
+            ch('B',1,'dad',2,136,141,0), ch('C',2,'mom',2,164,164,0)
           ]},
-          explain:'맞아요! 감수 1분열 결과 딸세포 2개가 만들어지고, 각 세포는 상동염색체 쌍 중 하나씩만 가져 염색체 수가 절반(n=2)이 돼요. 단, 각 염색체는 아직 자매염색분체 2개로 이루어져 있어요. (참고: 어느 쪽 세포에 엄마 염색체가 가고 아빠 염색체가 가는지는 쌍마다 무작위라서, 그림과 다른 색 조합으로 나뉘어도 똑같이 정답이에요. 이 무작위 배분 때문에 감수분열을 할 때마다 생식세포의 유전 조합이 달라질 수 있어요.)'
+          explain:'맞아요! 방추사가 위아래 극으로 상동염색체를 끌어당겼기 때문에 세포질분열도 위·아래로 일어나 딸세포 2개가 만들어지고, 각 세포는 상동염색체 쌍 중 하나씩만 가져 염색체 수가 절반(n=2)이 돼요. 단, 각 염색체는 아직 자매염색분체 2개로 이루어져 있어요. (참고: 어느 쪽 세포에 엄마 염색체가 가고 아빠 염색체가 가는지는 쌍마다 무작위라서, 그림과 다른 색 조합으로 나뉘어도 똑같이 정답이에요. 이 무작위 배분 때문에 감수분열을 할 때마다 생식세포의 유전 조합이 달라질 수 있어요.)'
         }
       },
       { key:'e5', label:'전기Ⅱ', full:'감수 2분열 전기',
         prompt:'두 딸세포에서 각각 감수 2분열이 시작돼요. 조각을 끌어다 <b>전기Ⅱ</b>의 배치를 완성해보세요.',
-        correct:{ scene:{cells:[CELL2L,CELL2R],scale:0.75,chromosomes:[
-            ch('A',1,'mom',2,68,88,-8), ch('D',2,'dad',2,102,124,8),
-            ch('B',1,'dad',2,198,88,8), ch('C',2,'mom',2,232,124,-8)
+        correct:{ scene:{cells:[CELL2T,CELL2B],scale:0.55,chromosomes:[
+            ch('A',1,'mom',2,138,46,-8), ch('D',2,'dad',2,162,72,8),
+            ch('B',1,'dad',2,138,140,8), ch('C',2,'mom',2,162,166,-8)
           ]},
           explain:'맞아요! 두 세포 안에는 이미 상동염색체 중 하나씩만 있어서 서로 짝지을 상대가 없어요. 각 염색체는 여전히 X모양(자매염색분체 2개)을 유지한 채 다음 분열을 준비해요.'
         }
       },
       { key:'e6', label:'중기Ⅱ', full:'감수 2분열 중기',
         prompt:'각 세포 안에서 염색체가 다시 정렬해요. 조각을 끌어다 <b>중기Ⅱ</b>의 배치를 완성해보세요.',
-        correct:{ scene:{cells:[CELL2L,CELL2R],scale:0.75,spindle:'bipolar',chromosomes:[
-            ch('A',1,'mom',2,68,105,0), ch('D',2,'dad',2,102,105,0),
-            ch('B',1,'dad',2,198,105,0), ch('C',2,'mom',2,232,105,0)
+        correct:{ scene:{cells:[CELL2T,CELL2B],scale:0.55,spindle:'bipolar',spindleAxis:'horizontal',chromosomes:[
+            ch('A',1,'mom',2,150,46,0), ch('D',2,'dad',2,150,70,0),
+            ch('B',1,'dad',2,150,140,0), ch('C',2,'mom',2,150,164,0)
           ]},
-          explain:'맞아요! 두 세포 각각에서 염색체가 하나씩 독립적으로 그 세포의 중앙에 정렬해요. 체세포분열의 중기와 같은 원리이지만, 염색체 수는 절반(n)이라는 점이 달라요.'
+          explain:'맞아요! 두 세포 각각에서 염색체가 하나씩 독립적으로 그 세포의 중앙에 정렬해요. 체세포분열의 중기와 같은 원리이지만, 염색체 수는 절반(n)이라는 점이 달라요. (참고: 감수 2분열은 감수 1분열과 독립적으로 방추사 방향이 정해지기 때문에, 이번엔 방추사가 좌우로 배치돼요.)'
         }
       },
       { key:'e7', label:'후기Ⅱ', full:'감수 2분열 후기',
         prompt:'두 세포 각각에서 염색분체가 갈라져요. 조각을 끌어다 <b>후기Ⅱ</b>의 배치를 완성해보세요.',
-        correct:{ scene:{cells:[CELL2L,CELL2R],scale:0.75,spindle:'monopolar',chromosomes:[
-            ch('A1',1,'mom',1,68,82,0), ch('A2',1,'mom',1,68,128,0), ch('D1',2,'dad',1,102,82,0), ch('D2',2,'dad',1,102,128,0),
-            ch('B1',1,'dad',1,198,82,0), ch('B2',1,'dad',1,198,128,0), ch('C1',2,'mom',1,232,82,0), ch('C2',2,'mom',1,232,128,0)
+        correct:{ scene:{cells:[CELL2T,CELL2B],scale:0.55,spindle:'monopolar',spindleAxis:'horizontal',chromosomes:[
+            ch('A1',1,'mom',1,126,46,0), ch('A2',1,'mom',1,174,46,0), ch('D1',2,'dad',1,126,70,0), ch('D2',2,'dad',1,174,70,0),
+            ch('B1',1,'dad',1,126,140,0), ch('B2',1,'dad',1,174,140,0), ch('C1',2,'mom',1,126,164,0), ch('C2',2,'mom',1,174,164,0)
           ]},
           explain:'맞아요! 두 세포 모두에서 자매염색분체가 분리되어 각 세포 안의 양 극으로 이동해요. 이제 곧 4개의 딸세포로 나뉠 준비가 끝났어요.'
         }
       },
       { key:'e8', label:'말기Ⅱ', full:'감수 2분열 말기',
         prompt:'각 세포에서 세포질분열이 일어나 분열이 마무리돼요. 조각을 끌어다 <b>말기Ⅱ</b>의 최종 배치를 완성해보세요.',
-        correct:{ scene:{cells:CELL4,scale:0.55,chromosomes:[
-            ch('A1',1,'mom',1,70,55,0), ch('D1',2,'dad',1,92,75,0),
-            ch('B1',1,'dad',1,210,55,0), ch('C1',2,'mom',1,232,75,0),
-            ch('A2',1,'mom',1,70,140,0), ch('D2',2,'dad',1,92,160,0),
-            ch('B2',1,'dad',1,210,140,0), ch('C2',2,'mom',1,232,160,0)
+        correct:{ scene:{cells:CELL4,scale:0.5,chromosomes:[
+            ch('A1',1,'mom',1,80,50,0), ch('D1',2,'dad',1,98,68,0),
+            ch('A2',1,'mom',1,200,50,0), ch('D2',2,'dad',1,218,68,0),
+            ch('B1',1,'dad',1,80,144,0), ch('C1',2,'mom',1,98,162,0),
+            ch('B2',1,'dad',1,200,144,0), ch('C2',2,'mom',1,218,162,0)
           ]},
-          explain:'맞아요! 감수 1분열과 감수 2분열을 거쳐 염색체 수가 절반(n=2)인 생식세포 4개가 만들어져요. 왼쪽 위·아래 두 세포는 같은 세포(감수 1분열로 나뉜 왼쪽 딸세포)의 자매염색분체가 갈라진 것이라 유전 정보가 서로 같고, 오른쪽 위·아래 두 세포도 마찬가지로 서로 같아요. 하지만 감수 1분열에서 상동염색체가 무작위로 나뉘었기 때문에, 왼쪽 세포들과 오른쪽 세포들은 서로 다른 염색체 조합을 가져요. 이런 무작위 분배가 생식세포마다 유전적 다양성을 만들어내는 원리예요.'
+          explain:'맞아요! 감수 1분열과 감수 2분열을 거쳐 염색체 수가 절반(n=2)인 생식세포 4개가 만들어져요. 위쪽 두 세포(왼쪽·오른쪽)는 감수 1분열로 나뉜 같은 딸세포에서 감수 2분열로 자매염색분체가 갈라져 나온 것이라 유전 정보가 서로 같고, 아래쪽 두 세포도 마찬가지로 서로 같아요. 하지만 감수 1분열에서 상동염색체가 무작위로 나뉘었기 때문에, 위쪽 세포들과 아래쪽 세포들은 서로 다른 염색체 조합을 가져요. 이런 무작위 분배가 생식세포마다 유전적 다양성을 만들어내는 원리예요.'
         }
       }
     ]
@@ -627,7 +698,7 @@
   }
 
   function go(mode){
-    state = {mode:mode, stageIdx:0};
+    state = {mode:mode, stageIdx:0, atIntro:true};
     render();
     window.scrollTo({top:0, behavior:'auto'});
   }
@@ -774,15 +845,15 @@
   /* ============ views ============ */
 
   function renderHome(){
-    var mPrev = sceneSVG({cells:[CELL2L,CELL2R],scale:0.75,chromosomes:[
-      ch('A1',1,'mom',1,60,85,0), ch('B1',1,'dad',1,105,85,0), ch('C1',2,'mom',1,65,130,0), ch('D1',2,'dad',1,100,130,0),
-      ch('A2',1,'mom',1,190,85,0), ch('B2',1,'dad',1,235,85,0), ch('C2',2,'mom',1,195,130,0), ch('D2',2,'dad',1,230,130,0)
+    var mPrev = sceneSVG({cells:[CELL2T,CELL2B],scale:0.55,chromosomes:[
+      ch('A1',1,'mom',1,132,44,0), ch('B1',1,'dad',1,164,44,0), ch('C1',2,'mom',1,136,76,0), ch('D1',2,'dad',1,161,76,0),
+      ch('A2',1,'mom',1,132,138,0), ch('B2',1,'dad',1,164,138,0), ch('C2',2,'mom',1,136,170,0), ch('D2',2,'dad',1,161,170,0)
     ]}, '체세포분열 결과 미리보기');
-    var gPrev = sceneSVG({cells:CELL4,scale:0.55,chromosomes:[
-      ch('A1',1,'mom',1,70,55,0), ch('D1',2,'dad',1,92,75,0),
-      ch('B1',1,'dad',1,210,55,0), ch('C1',2,'mom',1,232,75,0),
-      ch('A2',1,'mom',1,70,140,0), ch('D2',2,'dad',1,92,160,0),
-      ch('B2',1,'dad',1,210,140,0), ch('C2',2,'mom',1,232,160,0)
+    var gPrev = sceneSVG({cells:CELL4,scale:0.5,chromosomes:[
+      ch('A1',1,'mom',1,80,50,0), ch('D1',2,'dad',1,98,68,0),
+      ch('A2',1,'mom',1,200,50,0), ch('D2',2,'dad',1,218,68,0),
+      ch('B1',1,'dad',1,80,144,0), ch('C1',2,'mom',1,98,162,0),
+      ch('B2',1,'dad',1,200,144,0), ch('C2',2,'mom',1,218,162,0)
     ]}, '생식세포분열 결과 미리보기');
 
     app.innerHTML =
@@ -840,7 +911,7 @@
 
     var prevTitle, prevScene, prevNote;
     if(state.stageIdx === 0){
-      prevTitle = m.intro.title; prevScene = introScene; prevNote = m.intro.note;
+      prevTitle = m.intro.title; prevScene = m.intro.scene; prevNote = m.intro.afterNote;
     } else {
       var prevStage = m.stages[state.stageIdx-1];
       prevTitle = prevStage.full; prevScene = prevStage.correct.scene; prevNote = prevStage.correct.explain;
@@ -937,8 +1008,39 @@
     document.getElementById('otherBtn').addEventListener('click', function(){ go(otherMode); });
   }
 
+  function renderIntro(){
+    var m = MODES[state.mode];
+    app.innerHTML =
+      '<div class="topbar"><div class="brand"><span class="mark">🧬</span><h1>염색체 관찰소</h1><span class="tag">'+m.label+'</span></div>'+
+      '<button class="home-btn" id="homeBtn" type="button">🏠 처음으로</button></div>'+
+      '<div class="stage-head"><div class="kicker">분열 시작 전</div><h2>간기 (Interphase)</h2></div>'+
+      '<div class="intro-lead">'+m.intro.lead+'</div>'+
+      '<div class="intro-split">'+
+        '<div class="intro-panel">'+
+          '<div class="intro-panel-title">'+m.intro.beforeTitle+'</div>'+
+          '<div class="intro-diagram">'+sceneSVG(introBeforeScene, m.intro.beforeTitle)+'</div>'+
+          '<p>'+m.intro.beforeNote+'</p>'+
+        '</div>'+
+        '<div class="intro-panel">'+
+          '<div class="intro-panel-title">'+m.intro.afterTitle+'</div>'+
+          '<div class="intro-diagram">'+sceneSVG(introAfterScene, m.intro.afterTitle)+'</div>'+
+          '<p>'+m.intro.afterNote+'</p>'+
+        '</div>'+
+      '</div>'+
+      '<button class="next-btn" id="introNextBtn" type="button">'+m.stages[0].label+' 단계로 시작하기 →</button>'+
+      '<footer class="foot">© 수민T의 과학실험실. All rights reserved.</footer>';
+
+    document.getElementById('homeBtn').addEventListener('click', goHome);
+    document.getElementById('introNextBtn').addEventListener('click', function(){
+      state.atIntro = false;
+      render();
+      window.scrollTo({top:0, behavior:'auto'});
+    });
+  }
+
   function render(){
     if(!state.mode) return renderHome();
+    if(state.atIntro) return renderIntro();
     if(state.done) return renderComplete();
     return renderStage();
   }
