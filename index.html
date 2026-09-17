@@ -367,7 +367,32 @@
   }
 
   function cellNode(cell, gid){
-    return '<circle cx="'+cell.cx+'" cy="'+cell.cy+'" r="'+cell.r+'" fill="url(#'+gid+')" stroke="var(--cell-line)" stroke-width="2"/>';
+    if(!cell.pinch){
+      return '<circle cx="'+cell.cx+'" cy="'+cell.cy+'" r="'+cell.r+'" fill="url(#'+gid+')" stroke="var(--cell-line)" stroke-width="2"/>';
+    }
+    /* Anaphase: cytokinesis hasn't happened yet (this is still ONE cell,
+       one continuous membrane), but as the two chromosome groups near the
+       poles, the cell membrane starts to narrow at the middle, foreshadowing
+       where the cleavage furrow will later split it in two. Drawn as a
+       peanut/figure-8 outline, pinched along the spindle's pole-to-pole
+       axis, rather than a plain circle. */
+    var r = cell.r;
+    var H = r*1.15, bulge = r*0.82, waist = r*0.3, capC = r*0.5, midC = r*0.45;
+    /* Two round lobes (each with a smoothly rounded outer cap, like a
+       circle) joined by a concave waist -- traced as 8 cubic beziers around
+       the outline, rather than the 4-bezier chromatid shape (which comes to
+       a point at each end and would look like a leaf, not a pinching cell). */
+    var d = 'M0,'+(-H)+
+      ' C '+capC+','+(-H)+' '+bulge+','+(-H*0.83)+' '+bulge+','+(-H*0.48)+
+      ' C '+bulge+','+(-H*0.22)+' '+midC+','+(-H*0.05)+' '+waist+',0'+
+      ' C '+midC+','+(H*0.05)+' '+bulge+','+(H*0.22)+' '+bulge+','+(H*0.48)+
+      ' C '+bulge+','+(H*0.83)+' '+capC+','+H+' 0,'+H+
+      ' C '+(-capC)+','+H+' '+(-bulge)+','+(H*0.83)+' '+(-bulge)+','+(H*0.48)+
+      ' C '+(-bulge)+','+(H*0.22)+' '+(-midC)+','+(H*0.05)+' '+(-waist)+',0'+
+      ' C '+(-midC)+','+(-H*0.05)+' '+(-bulge)+','+(-H*0.22)+' '+(-bulge)+','+(-H*0.48)+
+      ' C '+(-bulge)+','+(-H*0.83)+' '+(-capC)+','+(-H)+' 0,'+(-H)+' Z';
+    var rot = cell.pinchAxis==='horizontal' ? 90 : 0;
+    return '<g transform="translate('+cell.cx+','+cell.cy+') rotate('+rot+')"><path d="'+d+'" fill="url(#'+gid+')" stroke="var(--cell-line)" stroke-width="2"/></g>';
   }
 
   function gradDefs(gid){
@@ -489,11 +514,21 @@
   }
 
   var CELL1 = {cx:150,cy:105,r:90};
+  /* Anaphase-only variant of the same cell: cytokinesis hasn't happened yet
+     (still one cell), but as chromosomes approach the poles the membrane
+     already starts narrowing at the middle in preparation for it. Kept as a
+     separate object (not a mutation of CELL1) since prophase/metaphase, which
+     also use CELL1, must stay a plain round cell. */
+  var CELL1_ANA = {cx:150,cy:105,r:90,pinch:true,pinchAxis:'vertical'};
   /* Spindle poles are always drawn along the vertical (top/bottom) axis of a
      cell by default, so a cell that has just finished dividing must sit
      ABOVE/BELOW its sibling (not side-by-side) to match where the two
      chromosome groups actually ended up at anaphase. */
   var CELL2T = {cx:150,cy:58,r:44}, CELL2B = {cx:150,cy:152,r:44};
+  /* Meiosis-II anaphase (e7): each already-divided cell pinches along ITS
+     OWN spindle axis, which is horizontal (see CELL4 note below). */
+  var CELL2T_ANA = {cx:150,cy:58,r:44,pinch:true,pinchAxis:'horizontal'};
+  var CELL2B_ANA = {cx:150,cy:152,r:44,pinch:true,pinchAxis:'horizontal'};
   /* Meiosis II re-orients its own spindle to the horizontal axis (a common,
      scientifically valid textbook convention, and it's what keeps the final
      4-cell result below a clean, readable 2x2 grid). So each meiosis-I
@@ -559,11 +594,11 @@
       },
       { key:'m3', label:'후기', full:'후기 (Anaphase)',
         prompt:'방추사가 짧아지면서 염색체를 양 극으로 끌어당겨요. 조각을 끌어다 <b>후기</b>의 염색체 배치를 완성해보세요.',
-        correct:{ scene:{cells:[CELL1],scale:1,spindle:'monopolar',chromosomes:[
+        correct:{ scene:{cells:[CELL1_ANA],scale:1,spindle:'monopolar',chromosomes:[
             ch('A1',1,'mom',1,78,50,0), ch('B1',1,'dad',1,118,50,0), ch('C1',2,'mom',1,182,50,0), ch('D1',2,'dad',1,222,50,0),
             ch('A2',1,'mom',1,78,160,0), ch('B2',1,'dad',1,118,160,0), ch('C2',2,'mom',1,182,160,0), ch('D2',2,'dad',1,222,160,0)
           ]},
-          explain:'맞아요! 후기에는 각 염색체의 자매염색분체가 분리되어 각각 하나의 독립된 염색체가 되고, 방추사에 끌려 양 극으로 이동해요. 양쪽 극에는 완전히 동일한 구성의 염색체 세트가 모여요.'
+          explain:'맞아요! 후기에는 각 염색체의 자매염색분체가 분리되어 각각 하나의 독립된 염색체가 되고, 방추사에 끌려 양 극으로 이동해요. 양쪽 극에는 완전히 동일한 구성의 염색체 세트가 모여요. 아직 세포질분열이 일어난 건 아니지만, 세포막이 가운데부터 오목하게 들어가기 시작해 다음 말기의 분열을 준비해요.'
         }
       },
       { key:'m4', label:'말기', full:'말기 (Telophase)',
@@ -611,11 +646,11 @@
       },
       { key:'e3', label:'후기Ⅰ', full:'감수 1분열 후기',
         prompt:'접합했던 2가염색체가 갈라져요. 조각을 끌어다 <b>후기Ⅰ</b>의 염색체 배치를 완성해보세요.',
-        correct:{ scene:{cells:[CELL1],scale:1,spindle:'monopolar',originFlexible:true,chromosomes:[
+        correct:{ scene:{cells:[CELL1_ANA],scale:1,spindle:'monopolar',originFlexible:true,chromosomes:[
             ch('A',1,'mom',2,115,50,0), ch('D',2,'dad',2,185,50,0),
             ch('B',1,'dad',2,115,160,0), ch('C',2,'mom',2,185,160,0)
           ]},
-          explain:'맞아요! 후기Ⅰ에는 자매염색분체는 그대로 붙어있고, 접합했던 상동염색체끼리 서로 떨어져 양 극으로 이동해요. 이 때문에 염색체 수가 절반으로 줄어드는 감수(reduction)가 일어나요. (참고: 이때 상동염색체 쌍마다 어느 극으로 갈지는 무작위로 정해지기 때문에, 그림과 다른 색 조합으로 나뉘어도 정답이에요.)'
+          explain:'맞아요! 후기Ⅰ에는 자매염색분체는 그대로 붙어있고, 접합했던 상동염색체끼리 서로 떨어져 양 극으로 이동해요. 이 때문에 염색체 수가 절반으로 줄어드는 감수(reduction)가 일어나요. 아직 세포질분열이 일어난 건 아니지만, 세포막이 가운데부터 오목하게 들어가기 시작해 다음 말기Ⅰ의 분열을 준비해요. (참고: 이때 상동염색체 쌍마다 어느 극으로 갈지는 무작위로 정해지기 때문에, 그림과 다른 색 조합으로 나뉘어도 정답이에요.)'
         }
       },
       { key:'e4', label:'말기Ⅰ', full:'감수 1분열 말기',
@@ -647,11 +682,11 @@
       },
       { key:'e7', label:'후기Ⅱ', full:'감수 2분열 후기',
         prompt:'두 세포 각각에서 염색분체가 갈라져요. 조각을 끌어다 <b>후기Ⅱ</b>의 배치를 완성해보세요.',
-        correct:{ scene:{cells:[CELL2T,CELL2B],scale:0.55,spindle:'monopolar',spindleAxis:'horizontal',chromosomes:[
+        correct:{ scene:{cells:[CELL2T_ANA,CELL2B_ANA],scale:0.55,spindle:'monopolar',spindleAxis:'horizontal',chromosomes:[
             ch('A1',1,'mom',1,126,46,0), ch('A2',1,'mom',1,174,46,0), ch('D1',2,'dad',1,126,70,0), ch('D2',2,'dad',1,174,70,0),
             ch('B1',1,'dad',1,126,140,0), ch('B2',1,'dad',1,174,140,0), ch('C1',2,'mom',1,126,164,0), ch('C2',2,'mom',1,174,164,0)
           ]},
-          explain:'맞아요! 두 세포 모두에서 자매염색분체가 분리되어 각 세포 안의 양 극으로 이동해요. 이제 곧 4개의 딸세포로 나뉠 준비가 끝났어요.'
+          explain:'맞아요! 두 세포 모두에서 자매염색분체가 분리되어 각 세포 안의 양 극으로 이동해요. 아직 세포질분열이 일어난 건 아니지만, 각 세포막이 가운데부터 오목하게 들어가기 시작해 이제 곧 4개의 딸세포로 나뉠 준비가 끝났어요.'
         }
       },
       { key:'e8', label:'말기Ⅱ', full:'감수 2분열 말기',
